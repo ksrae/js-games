@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shape Matcher - Pure JS</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container">
+    <h1 class="title">Shape Matcher</h1>
+    <p class="subtitle">Match items to score points! Create special items for big clears.</p>
+    
+    <div class="game-info">
+      <div class="stats-container">
+        <div class="score-display">
+          Score: <span id="score" class="score-value">0</span>
+        </div>
+        <div class="max-combo-display">
+          Max Combo: <span id="max-combo" class="max-combo-value">0</span>
+        </div>
+      </div>
+      <button id="restart-button" class="restart-button" aria-label="Restart Game">
+        Restart
+      </button>
+    </div>
+
+    <div id="game-over-message" class="message game-over-message hidden" role="alert">
+      Game Over! Press Restart.
+    </div>
+    <div id="shuffle-message" class="message shuffle-message hidden" role="status">
+      No more moves! Shuffling board...
+    </div>
+    
+    <canvas id="game-canvas" role="application" aria-label="Shape Matcher Game Board"></canvas>
+
+    <footer class="footer">
+      <p>Built with Pure JavaScript and HTML Canvas.</p>
+      <p>Tip: 4 in a row makes a Line Clear. A 2x2 square makes a Bomb! 5 in a row clears the screen!</p>
+    </footer>
+  </div>
+
+  <script src="game.js"></script>
+</body>
+</html>
