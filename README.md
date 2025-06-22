@@ -1,2 +1,0 @@
-# phaser-sample
-using phaser
