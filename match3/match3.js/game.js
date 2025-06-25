@@ -64,7 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const DRAG_ITEM_SCALE = 1.1; // 사용자가 드래그하는 아이템의 크기를 1.1배로 확대
     const DRAG_ITEM_ALPHA = 0.75; // 드래그하는 아이템을 75%의 투명도로 설정
     const BOMB_EFFECT_RADIUS = 1; // 폭탄 아이템의 폭발 반경 (1이면 중심 포함 3x3 영역)
-    
+
     // --- 힌트 및 셔플 관련 상수 ---
     const HINT_DELAY = 3000; // 사용자가 아무 조작도 하지 않을 때 3초 후에 힌트를 표시
     const HINT_PULSE_SPEED = 300; // 힌트가 깜빡이는 속도
@@ -107,7 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // 상수에 정의된 그리드 크기와 셀 크기를 바탕으로 캔버스의 너비와 높이를 계산합니다.
             this.canvas.width = GRID_COLS * CELL_SIZE;
             this.canvas.height = GRID_ROWS * CELL_SIZE;
-            
+
             // --- 3. 초기화 메서드 순차적 호출 ---
             this.bindMethods();         // `this` 컨텍스트 문제를 방지하기 위해 메서드를 바인딩합니다.
             this.setupEventListeners(); // 사용자의 입력을 처리할 이벤트 리스너를 설정합니다.
@@ -135,7 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.canvas.addEventListener('mousedown', this.handleMouseDown);
             window.addEventListener('mousemove', this.handleMouseMove);
             window.addEventListener('mouseup', this.handleMouseUp);
-            
+
             // --- 터치 이벤트 리스너 (모바일 지원) ---
             // passive: false 옵션은 터치 시 브라우저의 기본 동작(예: 화면 스크롤)을 막기 위함입니다.
             this.canvas.addEventListener('touchstart', this.handleMouseDown, { passive: false });
@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
             this.lastInteractionTime = Date.now();
             this.hasShuffledRecently = false;
             this.isShufflingBoard = false;
-            
+
             // UI 초기화
             this.updateScore(0);
             this.updateMaxCombo(0);
@@ -206,7 +206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         handleRestartGame() {
             this.initializeGame();
         }
-        
+
         // --- UI 업데이트 메서드 ---
 
         /** 화면의 점수 표시를 업데이트합니다. */
@@ -240,7 +240,7 @@ document.addEventListener('DOMContentLoaded', () => {
         /** 콤보 카운트를 1 증가시키고, 캔버스에 텍스트를 표시할 준비를 합니다. */
         incrementCombo(matchPositions) {
             this.comboCount = this.comboCount + 1;
-            
+
             if (this.comboCount > 1) {
                 let sumX = 0;
                 let sumY = 0;
@@ -284,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             return newItem;
         }
-        
+
         /** 특수 아이템의 종류에 따라 효과 범위를 계산하여 위치 배열로 반환합니다. */
         getSpecialEffectCells(itemPos, specialType) {
             const effectCells = [];
@@ -553,7 +553,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         }
-        
+
         /** 게임 시작 시 그리드를 생성합니다. */
         initializeGridAndLogic() {
             this.isShufflingBoard = false; this.hasShuffledRecently = false; this.showShuffleMessage(false); this.isProcessingMove = true; 
@@ -578,6 +578,174 @@ document.addEventListener('DOMContentLoaded', () => {
             } while ((initialAnalysis.positionsToClear.size > 0 || initialAnalysis.specialsToCreate.length > 0 || initialAnalysis.specialsToActivate.length > 0) && attempts < MAX_INIT_FIX_ATTEMPTS);
             this.updateScore(0); this.animationState = { type: 'idle' }; this.isProcessingMove = false; 
             this.handleNextStepInGameLogic();
+        }
+
+        // =========================================================================
+        // --- [수정] 누락된 핵심 로직 함수 추가 ---
+        // =========================================================================
+
+        /**
+         * 매치된 아이템들을 그리드에서 제거(null로 설정)합니다.
+         * @param {Array<{row: number, col: number}>} itemsToRemove - 제거할 아이템들의 위치 배열
+         */
+        removeMatchedItemsFromGrid(itemsToRemove) {
+            itemsToRemove.forEach(pos => {
+                if (this.grid[pos.row] && this.grid[pos.row][pos.col] !== null) {
+                    this.grid[pos.row][pos.col] = null;
+                }
+            });
+        }
+
+        /**
+         * 그리드에 중력을 적용하여 아이템들을 아래로 떨어뜨립니다.
+         * @returns {{newFallingItems: Array}} - 애니메이션을 위해 떨어지는 아이템 정보 배열
+         */
+        applyGravityToGrid() {
+            const newFallingItems = [];
+            // 각 열(column)을 아래에서부터 위로 확인합니다.
+            for (let c = 0; c < GRID_COLS; c++) {
+                let emptyRow = -1; // 해당 열에서 가장 높은 빈 공간의 행 인덱스
+
+                // 열의 가장 아래 행부터 위로 올라가면서 검사합니다.
+                for (let r = GRID_ROWS - 1; r >= 0; r--) {
+                    if (this.grid[r][c] === null && emptyRow === -1) {
+                        // 처음으로 발견된 빈 공간을 기록합니다.
+                        emptyRow = r;
+                    } else if (this.grid[r][c] !== null && emptyRow !== -1) {
+                        // 빈 공간 위에 아이템이 있다면, 그 아이템을 빈 공간으로 이동시킵니다.
+                        const itemToFall = this.grid[r][c];
+                        this.grid[emptyRow][c] = itemToFall;
+                        this.grid[r][c] = null;
+
+                        // 애니메이션을 위해 어떤 아이템이 어디서 어디로 떨어지는지 기록합니다.
+                        newFallingItems.push({
+                            item: itemToFall,
+                            col: c,
+                            fromY: r * CELL_SIZE,
+                            currentY: r * CELL_SIZE,
+                            toY: emptyRow * CELL_SIZE,
+                            landed: false
+                        });
+
+                        // 다음 빈 공간은 방금 채운 곳의 바로 위가 됩니다.
+                        emptyRow--;
+                    }
+                }
+            }
+            return { newFallingItems };
+        }
+
+        /**
+         * 그리드의 빈 공간을 새로운 아이템으로 채웁니다.
+         * @returns {{newRefillingItems: Array}} - 애니메이션을 위해 새로 채워지는 아이템 정보 배열
+         */
+        refillGridWithNewItems() {
+            const newRefillingItems = [];
+            // 각 열을 순회하며 빈 공간이 있는지 확인합니다.
+            for (let c = 0; c < GRID_COLS; c++) {
+                let refillCount = 0;
+                // 열의 아래부터 위로 확인하여 빈 공간(null)을 찾습니다.
+                for (let r = GRID_ROWS - 1; r >= 0; r--) {
+                    if (this.grid[r][c] === null) {
+                        refillCount++;
+                        const newItem = this.createRandomItem();
+                        this.grid[r][c] = newItem;
+
+                        // 애니메이션을 위해 새로 생성된 아이템의 정보를 기록합니다.
+                        // 아이템은 화면 밖(-y 좌표)에서 시작하여 제자리로 떨어집니다.
+                        newRefillingItems.push({
+                            item: newItem,
+                            col: c,
+                            fromY: (-refillCount) * CELL_SIZE,
+                            currentY: (-refillCount) * CELL_SIZE,
+                            toY: r * CELL_SIZE,
+                            landed: false
+                        });
+                    }
+                }
+            }
+            return { newRefillingItems };
+        }
+
+        // =========================================================================
+        // --- [수정] 누락된 함수 추가 (힌트 및 이동 가능 여부 체크) ---
+        // =========================================================================
+        
+        /**
+         * 게임 보드에 더 이상 움직일 수 있는 조합이 있는지 확인합니다.
+         * @returns {boolean} 가능한 움직임이 있으면 true, 없으면 false를 반환합니다.
+         */
+        checkPossibleMoves() {
+            for (let r = 0; r < GRID_ROWS; r++) {
+                for (let c = 0; c < GRID_COLS; c++) {
+                    const item1 = this.grid[r][c];
+                    if (!item1) continue;
+
+                    // 오른쪽 아이템과 교환 테스트
+                    if (c < GRID_COLS - 1) {
+                        const item2 = this.grid[r][c + 1];
+                        if (item2 && this.wouldSwapCreateMatch({row: r, col: c}, {row: r, col: c + 1})) {
+                            return true;
+                        }
+                    }
+
+                    // 아래쪽 아이템과 교환 테스트
+                    if (r < GRID_ROWS - 1) {
+                        const item2 = this.grid[r + 1][c];
+                        if (item2 && this.wouldSwapCreateMatch({row: r, col: c}, {row: r + 1, col: c})) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false; // 모든 조합을 확인했지만 가능한 움직임이 없음
+        }
+
+        /**
+         * 플레이어에게 보여줄 힌트를 찾습니다.
+         * @returns {Array|null} 힌트로 보여줄 두 아이템의 위치 배열 [{row, col}, {row, col}] 또는 힌트가 없으면 null을 반환합니다.
+         */
+        findHint() {
+            for (let r = 0; r < GRID_ROWS; r++) {
+                for (let c = 0; c < GRID_COLS; c++) {
+                    // 오른쪽 아이템과 교환하여 힌트 찾기
+                    if (c < GRID_COLS - 1) {
+                        if (this.wouldSwapCreateMatch({row: r, col: c}, {row: r, col: c + 1})) {
+                            return [{row: r, col: c}, {row: r, col: c + 1}];
+                        }
+                    }
+                    // 아래쪽 아이템과 교환하여 힌트 찾기
+                    if (r < GRID_ROWS - 1) {
+                        if (this.wouldSwapCreateMatch({row: r, col: c}, {row: r + 1, col: c})) {
+                            return [{row: r, col: c}, {row: r + 1, col: c}];
+                        }
+                    }
+                }
+            }
+            return null; // 힌트 없음
+        }
+
+        /**
+         * 두 아이템을 가상으로 교환했을 때 매치가 발생하는지 확인하는 헬퍼 함수입니다.
+         * @param {{row: number, col: number}} pos1 첫 번째 아이템 위치
+         * @param {{row: number, col: number}} pos2 두 번째 아이템 위치
+         * @returns {boolean} 매치가 발생하면 true, 아니면 false를 반환합니다.
+         */
+        wouldSwapCreateMatch(pos1, pos2) {
+            // 그리드를 복사하지 않고, 타입만 임시로 바꿔서 확인
+            const tempGrid = this.grid.map(row => row.map(item => (item ? { ...item } : null)));
+            const item1 = tempGrid[pos1.row][pos1.col];
+            const item2 = tempGrid[pos2.row][pos2.col];
+
+            // 가상으로 교환
+            tempGrid[pos1.row][pos1.col] = item2;
+            tempGrid[pos2.row][pos2.col] = item1;
+
+            // `analyzeGridState`를 사용하여 교환 후 상태 분석
+            const analysis = this.analyzeGridState(tempGrid);
+
+            // 매치가 발생하거나, 특수 아이템이 생성/활성화되면 유효한 움직임으로 간주
+            return analysis.positionsToClear.size > 0 || analysis.specialsToCreate.length > 0 || analysis.specialsToActivate.length > 0;
         }
 
         // --- 이벤트 핸들러 구현부 ---
@@ -780,11 +948,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (Math.min(1, elapsed / MATCH_ANIMATION_DURATION) >= 1) {
                     this.removeMatchedItemsFromGrid(animState.items);
                     const { newFallingItems } = this.applyGravityToGrid();
-                    if (newFallingItems.length > 0) this.animationState = { type: 'falling', items: newFallingItems, startTime: Date.now() };
-                    else {
+                    if (newFallingItems.length > 0) {
+                        this.animationState = { type: 'falling', items: newFallingItems, startTime: Date.now() };
+                    } else {
                         const { newRefillingItems } = this.refillGridWithNewItems();
-                         if (newRefillingItems.length > 0) this.animationState = { type: 'refilling', items: newRefillingItems, startTime: Date.now() };
-                        else { this.animationState = { type: 'idle' }; animationCompletedThisFrame = true; }
+                        if (newRefillingItems.length > 0) {
+                            this.animationState = { type: 'refilling', items: newRefillingItems, startTime: Date.now() };
+                        } else { 
+                            this.animationState = { type: 'idle' }; 
+                            animationCompletedThisFrame = true; 
+                        }
                     }
                 }
             } else if (animState.type === 'falling' || animState.type === 'refilling') {
@@ -800,9 +973,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (allLanded) {
                     if (animState.type === 'falling') {
                         const { newRefillingItems } = this.refillGridWithNewItems();
-                        if (newRefillingItems.length > 0) this.animationState = { type: 'refilling', items: newRefillingItems, startTime: Date.now() };
-                        else { this.animationState = { type: 'idle' }; animationCompletedThisFrame = true; }
-                    } else { this.animationState = { type: 'idle' }; animationCompletedThisFrame = true; }
+                        if (newRefillingItems.length > 0) {
+                            this.animationState = { type: 'refilling', items: newRefillingItems, startTime: Date.now() };
+                        } else { 
+                            this.animationState = { type: 'idle' }; 
+                            animationCompletedThisFrame = true; 
+                        }
+                    } else { 
+                        this.animationState = { type: 'idle' }; 
+                        animationCompletedThisFrame = true; 
+                    }
                 }
             } else if (animState.type === 'invalid_swap') {
                 const elapsed = Date.now() - animState.startTime;
@@ -816,10 +996,14 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (progress >= 1) { item.currentX = item.endX; item.currentY = item.endY; }
                     }
                 });
-                if (allMovedBack || progress >= 1) { this.animationState = { type: 'idle' }; animationCompletedThisFrame = true; }
+                if (allMovedBack || progress >= 1) { 
+                    this.animationState = { type: 'idle' }; 
+                    animationCompletedThisFrame = true; 
+                }
             }
             if (animationCompletedThisFrame) {
-                this.isProcessingMove = false; this.handleNextStepInGameLogic();
+                this.isProcessingMove = false; 
+                this.handleNextStepInGameLogic();
             }
             return this.animationState.type === 'idle';
         }
